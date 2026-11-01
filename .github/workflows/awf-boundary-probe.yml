@@ -1,0 +1,27 @@
+name: Manual AWF boundary probe
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  boundary-probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: github/gh-aw-actions/setup@221ba4f4319de6b8e809d1a15528b3ae6a818aa5
+        with:
+          destination: ${{ runner.temp }}/gh-aw/actions
+      - name: Install the maintained AWF 0.29.0 release with pinned checksum manifest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash "$RUNNER_TEMP/gh-aw/actions/install_awf_binary.sh" v0.29.0 --checksums-sha256 2d49727b3b65630b5d0ba5375168687a852afac319d05c911d4769c43fa2ed61 --rootless
+      - name: Run synthetic boundary assertions without inference
+        run: bash .github/scripts/awf-boundary-probe.sh
+      - name: Record actual job outcome
+        if: always()
+        env:
+          PROBE_STATUS: ${{ job.status }}
+        run: echo "AWF boundary probe job outcome $PROBE_STATUS. No inference or publication was requested." >> "$GITHUB_STEP_SUMMARY"

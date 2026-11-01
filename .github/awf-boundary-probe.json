@@ -1,0 +1,14 @@
+{
+  "$schema": "https://github.com/github/gh-aw-firewall/releases/download/v0.29.0/awf-config.schema.json",
+  "network": {"allowDomains": ["api.github.com"], "isolation": true},
+  "security": {"legacySecurity": false},
+  "environment": {
+    "envAll": true,
+    "excludeEnv": ["AWF_PROBE_SECRET", "GH_TOKEN", "GITHUB_TOKEN", "ACTIONS_ID_TOKEN_REQUEST_TOKEN", "ACTIONS_ID_TOKEN_REQUEST_URL"]
+  },
+  "container": {
+    "enableDind": false,
+    "agentTimeout": 2,
+    "imageTag": "0.29.0,squid=sha256:6e0cbf7f980beb78b5461563a8164f6439ca959bc93733d5a6b52972e523ed50,agent=sha256:b14bd399376180b5649a9324be3b50fbfc82bfe8f0c80045840416b5a4e65b96,api-proxy=sha256:baff00b856a4bdc93bce134928c70af3d3492f2e518757115042040674d56b0b"
+  }
+}
