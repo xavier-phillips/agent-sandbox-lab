@@ -15,11 +15,11 @@ engine:
   model: openai/QUALIFIED_REVIEW_ROUTE_ID
   model-provider: openai
   env:
-    OPENAI_BASE_URL: https://omniroute.example.invalid/v1
+    OPENAI_BASE_URL: https://ai-server.tail67b2d4.ts.net/v1
     CODEX_API_KEY: ${{ secrets.OMNIROUTE_API_KEY }}
     OPENAI_API_KEY: ${{ secrets.OMNIROUTE_API_KEY }}
 network:
-  allowed: [defaults, omniroute.example.invalid]
+  allowed: [defaults, ai-server.tail67b2d4.ts.net]
 tools:
   bash: false
   cli-proxy: false
@@ -34,7 +34,7 @@ safe-outputs:
       model: openai/QUALIFIED_REVIEW_ROUTE_ID
       model-provider: openai
       env:
-        OPENAI_BASE_URL: https://omniroute.example.invalid/v1
+        OPENAI_BASE_URL: https://ai-server.tail67b2d4.ts.net/v1
         CODEX_API_KEY: ${{ secrets.OMNIROUTE_API_KEY }}
   jobs:
     publish-review:
@@ -99,6 +99,21 @@ jobs:
             const {guard} = require('./.github/scripts/guard.cjs');
             await guard({github, context}, false);
   agent:
+    permissions:
+      contents: read
+      pull-requests: read
+    pre-steps:
+      - name: Connect private inference tailnet
+        uses: tailscale/github-action@064b10558093f38325e838ddea35486bdc6b1d5c # v4.4.0
+        env:
+          XDG_RUNTIME_DIR: ${{ runner.temp }}/lean-tailscale
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
+          tags: tag:github-bot
+          version: '1.102.4'
+          use-cache: 'false'
+          log-mode: quiet
     needs: [policy]
     if: needs.policy.result == 'success'
   recheck:
@@ -120,6 +135,22 @@ jobs:
   safe_outputs:
     needs: [recheck]
     if: needs.recheck.result == 'success'
+  detection:
+    permissions:
+      contents: read
+    pre-steps:
+      - name: Connect private inference tailnet
+        uses: tailscale/github-action@064b10558093f38325e838ddea35486bdc6b1d5c # v4.4.0
+        env:
+          XDG_RUNTIME_DIR: ${{ runner.temp }}/lean-tailscale
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
+          tags: tag:github-bot
+          version: '1.102.4'
+          use-cache: 'false'
+          log-mode: quiet
+
 timeout-minutes: 15
 max-turns: 15
 ---

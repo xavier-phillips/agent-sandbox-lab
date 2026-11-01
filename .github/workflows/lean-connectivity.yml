@@ -1,0 +1,66 @@
+name: Private inference connectivity
+on:
+  workflow_dispatch:
+permissions: {}
+jobs:
+  connectivity:
+    if: github.actor_id == '141337987'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions: {}
+    steps:
+      - name: Connect private inference tailnet
+        uses: tailscale/github-action@064b10558093f38325e838ddea35486bdc6b1d5c # v4.4.0
+        env:
+          XDG_RUNTIME_DIR: ${{ runner.temp }}/lean-tailscale
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
+          tags: tag:github-bot
+          version: '1.102.4'
+          use-cache: 'false'
+          log-mode: quiet
+      - name: Verify HTTPS authentication and API-only surface
+        shell: bash
+        env:
+          OMNIROUTE_API_KEY: ${{ secrets.OMNIROUTE_API_KEY }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import urllib.error
+          import urllib.request
+
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, headers, newurl):
+                  return None
+
+          endpoint = 'https://ai-server.tail67b2d4.ts.net'
+          key = os.environ['OMNIROUTE_API_KEY']
+          if not key:
+              raise SystemExit('Missing provider credential')
+          client = urllib.request.build_opener(NoRedirect)
+
+          def check(path, expected, authenticated=False, models=False):
+              headers = {'Authorization': 'Bearer ' + key} if authenticated else {}
+              request = urllib.request.Request(endpoint + path, headers=headers)
+              try:
+                  with client.open(request, timeout=30) as response:
+                      status = response.status
+                      if models and status == expected:
+                          body = json.load(response)
+                          if not isinstance(body, dict) or not isinstance(body.get('data'), list):
+                              raise SystemExit('Invalid models response shape')
+              except urllib.error.HTTPError as error:
+                  status = error.code
+                  error.close()
+              if status != expected:
+                  raise SystemExit('Unexpected HTTP status: ' + str(status))
+
+          check('/v1/models', 401)
+          check('/v1/models', 200, authenticated=True, models=True)
+          for path in ('/', '/api', '/api/keys', '/api/settings'):
+              check(path, 404)
+              check(path, 404, authenticated=True)
+          print('HTTPS authentication and API-only surface checks passed; no inference called')
+          PY

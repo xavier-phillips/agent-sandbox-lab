@@ -4,6 +4,50 @@ import json
 import yaml
 
 root = Path(__file__).resolve().parents[1]
+tailscale_action = "tailscale/github-action@064b10558093f38325e838ddea35486bdc6b1d5c"
+def check_tailnet(job):
+    assert all(value != "write" for value in job["permissions"].values())
+    assert "id-token" not in job["permissions"]
+    connections = [step for step in job["steps"] if step.get("uses") == tailscale_action]
+    assert len(connections) == 1
+    assert connections[0]["env"] == {"XDG_RUNTIME_DIR": "${{ runner.temp }}/lean-tailscale"}
+    assert connections[0]["with"] == {
+        "oauth-client-id": "${{ secrets.TS_OAUTH_CLIENT_ID }}",
+        "oauth-secret": "${{ secrets.TS_OAUTH_CLIENT_SECRET }}",
+        "tags": "tag:github-bot", "version": "1.102.4",
+        "use-cache": "false", "log-mode": "quiet",
+    }
+    assert not any(key in job.get("env", {}) for key in ("TS_OAUTH_CLIENT_ID", "TS_OAUTH_CLIENT_SECRET"))
+    assert [step for step in job["steps"] if "secrets.TS_OAUTH_CLIENT_SECRET" in str(step)] == connections
+
+canary = yaml.safe_load((root / ".github/workflows/lean-connectivity.yml").read_text(encoding="utf-8"))
+assert canary.get("on", canary.get(True)) == {"workflow_dispatch": None}
+assert canary["permissions"] == {} and set(canary["jobs"]) == {"connectivity"}
+connectivity = canary["jobs"]["connectivity"]
+assert connectivity["if"] == "github.actor_id == '141337987'"
+assert connectivity["permissions"] == {}
+check_tailnet(connectivity)
+assert len(connectivity["steps"]) == 2
+probe = connectivity["steps"][1]
+assert probe["env"] == {"OMNIROUTE_API_KEY": "${{ secrets.OMNIROUTE_API_KEY }}"}
+assert "check('/v1/models', 401)" in probe["run"]
+assert "check('/v1/models', 200, authenticated=True, models=True)" in probe["run"]
+assert "'/api/keys'" in probe["run"] and "check(path, 404, authenticated=True)" in probe["run"]
+assert "chat/completions" not in probe["run"] and "/responses" not in probe["run"]
+print("Connectivity: manual-only bounded HTTPS canary, key only in probe step, no inference")
+gate_probe = yaml.safe_load((root / ".github/workflows/lean-gate-check.yml").read_text(encoding="utf-8"))
+assert set(gate_probe.get("on", gate_probe.get(True))) == {"workflow_dispatch"}
+assert gate_probe["permissions"] == {} and len(gate_probe["jobs"]) == 1
+gate_job = gate_probe["jobs"]["approve-synthetic-head"]
+assert gate_job["if"] == "github.actor_id == '141337987' && github.repository_id == '1441786552'"
+assert gate_job["permissions"] == {"pull-requests": "write"} and len(gate_job["steps"]) == 1
+gate_step = gate_job["steps"][0]
+assert gate_step["uses"] == "actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3"
+assert gate_step["with"]["github-token"] == "${{ secrets.GITHUB_TOKEN }}"
+assert str(gate_probe).count("secrets.") == 1 and "env" not in gate_job
+for fence in ("Number.isSafeInteger(number)", "/^[a-f0-9]{40}$/", "pr.state !== 'open'", "pr.draft !== false", "pr.head.repo?.full_name", "pr.base.repo?.full_name", "pr.base.ref !== 'gate-acceptance'", "pr.user.id !== 141337987", "'[gate acceptance] '", "pr.head.sha !== expected_head", "commit_id: expected_head"):
+    assert fence in gate_step["with"]["script"], fence
+print("Gate acceptance: manual exact-head Actions approval only on fenced synthetic lab branch")
 ci = yaml.safe_load((root / ".github/workflows/ci.yml").read_text(encoding="utf-8"))
 assert ci["permissions"] == {"contents": "read"}
 assert "secrets." not in str(ci) and "OPENAI" not in str(ci)
@@ -17,7 +61,22 @@ for name in ("work", "repair", "review"):
     if name != "work":
         assert f"needs.{gate}.result == 'success'" in jobs["agent"]["if"], name
     agent = jobs["agent"]
-    assert all(value != "write" for value in agent.get("permissions", {}).values()), name
+    assert not any(job.get("permissions", {}).get("id-token") == "write" for job in jobs.values()), name
+    assert [key for key, job in jobs.items() if "secrets.TS_OAUTH_CLIENT_SECRET" in str(job)] == ["agent", "detection"], name
+    assert [key for key, job in jobs.items() if tailscale_action in str(job)] == ["agent", "detection"], name
+    for job_name in ("agent", "detection"):
+        job = jobs[job_name]
+        check_tailnet(job)
+        execution_steps = [step for step in job["steps"] if step.get("name", "").startswith("Execute")]
+        assert len(execution_steps) == 1, (name, job_name)
+        run = execution_steps[0]["run"]
+        assert all(f"--exclude-env {key}" in run for key in ("ACTIONS_ID_TOKEN_REQUEST_TOKEN", "ACTIONS_ID_TOKEN_REQUEST_URL")), (name, job_name)
+        assert "TS_OAUTH_CLIENT_ID" not in str(execution_steps[0]) and "TS_OAUTH_CLIENT_SECRET" not in str(execution_steps[0]), (name, job_name)
+        connection_index = next(i for i, step in enumerate(job["steps"]) if step.get("uses") == tailscale_action)
+        assert connection_index < job["steps"].index(execution_steps[0]), (name, job_name)
+    assert "omniroute.example.invalid" not in str(workflow), name
+    assert "https://ai-server.tail67b2d4.ts.net/v1" in str(workflow), name
+    assert "QUALIFIED_ROUTE_ID" in str(workflow) or name == "review", name
     execution = [step for step in agent["steps"] if step.get("name") == "Execute Pi CLI"]
     assert len(execution) == 1, name
     step = execution[0]
