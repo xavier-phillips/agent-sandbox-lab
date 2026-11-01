@@ -1,0 +1,1 @@
+Synthetic policy-file ownership test. No executable content.
