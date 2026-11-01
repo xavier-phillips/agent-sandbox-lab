@@ -24,3 +24,15 @@ test('consume repair budget before inference and deny subsequent PR attempts', a
   await guard({github, context}, false); // Independent review is still permitted.
   await assert.rejects(guard({github, context: {...context, payload: {...context.payload, review: {commit_id: 'c'.repeat(40)}}}}, false), /Stale review/);
 });
+test('review label requires the latest Actions change request on the exact head before spending budget', async () => {
+  const good = {id: 10, user: {login: 'github-actions[bot]'}, commit_id: sha, state: 'CHANGES_REQUESTED'};
+  for (const [reviews, accepted] of [[[], false], [[{...good, user: {login: 'someone'}}], false], [[{...good, commit_id: 'c'.repeat(40)}], false], [[good, {...good, id: 11, state: 'APPROVED'}], false], [[good], true]]) {
+    let writes = 0;
+    const listFiles = () => {}, listReviews = () => {};
+    const github = {rest: {repos: {get: async () => ({data: {default_branch: 'main'}}), getBranch: async () => ({data: {commit: {sha: base}}})}, pulls: {get: async () => ({data: structuredClone(pr)}), listFiles, listReviews}, issues: {addLabels: async () => {writes++;}}}, paginate: async method => method === listReviews ? reviews : files};
+    const context = {repo: {owner: 'owner', repo: 'repo'}, payload: {pull_request: pr, action: 'labeled', label: {name: 'agent:review-changes'}}};
+    if (accepted) await guard({github, context}, true);
+    else await assert.rejects(guard({github, context}, true), /current-head Actions/);
+    assert.equal(writes, accepted ? 1 : 0);
+  }
+});

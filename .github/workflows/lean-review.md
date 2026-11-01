@@ -43,7 +43,7 @@ safe-outputs:
       max: 1
       permissions:
         contents: read
-        pull-requests: read
+        pull-requests: write
       inputs:
         event:
           description: APPROVE or REQUEST_CHANGES
@@ -59,8 +59,10 @@ safe-outputs:
             ref: ${{ github.event.pull_request.base.sha }}
             persist-credentials: false
         - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3
+          env:
+            REVIEW_REPAIR_TRIGGER_TOKEN: ${{ secrets.LEAN_BOT_CI_TRIGGER_TOKEN }}
           with:
-            github-token: ${{ secrets.LEAN_BOT_REVIEW_TOKEN }}
+            github-token: ${{ secrets.GITHUB_TOKEN }}
             script: |
               const {guard} = require('./.github/scripts/guard.cjs');
               const {validateEvidence} = require('./.github/scripts/review-evidence.cjs');
@@ -74,6 +76,11 @@ safe-outputs:
               await guard({github, context}, false);
               const review = output.items.find(x => x.type === 'publish_review');
               await github.rest.pulls.createReview({owner, repo, pull_number: expected.number, commit_id: expected.head.sha, event: review.event, body: JSON.stringify(body)});
+              if (review.event === 'REQUEST_CHANGES') {
+                if (!process.env.REVIEW_REPAIR_TRIGGER_TOKEN) throw Error('Missing scoped repair-trigger credential');
+                const publisher = getOctokit(process.env.REVIEW_REPAIR_TRIGGER_TOKEN);
+                await publisher.rest.issues.addLabels({owner, repo, issue_number: expected.number, labels: ['agent:review-changes']});
+              }
 jobs:
   policy:
     if: vars.LEAN_BOT_TRIAL == 'true'
@@ -133,4 +140,4 @@ negative inputs [-80,25] expected -20. Each inspected record also has case, inpu
 expected. For FAIL include at least one concrete file/line finding. Missing access or
 uncertainty means emit no approval. Generic/empty prose and malformed evidence are rejected
 by a trusted publisher hook. Never approve on the basis of the author's claim that CI passes.
-The trusted publisher must use a separate review-only GitHub principal from the PR author.
+The trusted publisher uses the GitHub Actions token; the PR author/pusher uses Xavier's scoped publication PAT.

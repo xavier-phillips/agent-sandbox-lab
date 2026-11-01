@@ -2,7 +2,7 @@
 description: One native PR-event CI repair with a deterministic cumulative budget
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened, synchronize, reopened, ready_for_review, labeled]
   pull_request_review:
     types: [submitted]
 permissions:
@@ -46,6 +46,7 @@ safe-outputs:
         OPENAI_BASE_URL: https://omniroute.example.invalid/v1
         CODEX_API_KEY: ${{ secrets.OMNIROUTE_API_KEY }}
   push-to-pull-request-branch:
+    github-token: ${{ secrets.LEAN_BOT_CI_TRIGGER_TOKEN }}
     target: triggering
     required-title-prefix: '[lean-bot] '
     required-labels: [agent:approved]
@@ -70,9 +71,12 @@ jobs:
           node-version: '24'
       - run: npm test
   reserve:
-    needs: fixture-ci
+    needs: [activation, fixture-ci]
     if: >-
-      always() && (needs.fixture-ci.result == 'failure' || github.event.review.state == 'changes_requested') &&
+      always() && !cancelled() && needs.activation.result == 'success' &&
+      needs.activation.outputs.daily_ai_credits_exceeded != 'true' &&
+      (needs.fixture-ci.result == 'failure' || github.event.review.state == 'changes_requested' ||
+       (github.event.action == 'labeled' && github.event.label.name == 'agent:review-changes')) &&
       vars.LEAN_BOT_TRIAL == 'true' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
       contains(github.event.pull_request.labels.*.name, 'agent:approved')
@@ -124,5 +128,6 @@ Read the triggering review when present. The trusted CI/review trigger and deter
 automatic repair attempt before inference. Run npm test to reproduce it. Only edit
 fixture/math.js. Run npm test again and publish exactly one correction through
 push-to-pull-request-branch. Do not modify tests, configuration, labels or protections.
+For an agent:review-changes label event, fetch the latest github-actions[bot] change-request
+review on this exact head and address its concrete findings even when current tests pass.
 If tests still fail, stop. The worker receives no GitHub publisher token.
-

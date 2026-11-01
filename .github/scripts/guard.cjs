@@ -20,6 +20,11 @@ async function guard({github, context}, reserve = false) {
   const files = await github.paginate(github.rest.pulls.listFiles, {owner, repo, pull_number, per_page: 100});
   const {data: pr} = await github.rest.pulls.get({owner, repo, pull_number});
   assertEligible(pr, expected, `${owner}/${repo}`, files, repository.default_branch, branch.commit?.sha);
+  if (context.payload.action === 'labeled' && context.payload.label?.name === 'agent:review-changes') {
+    const reviews = await github.paginate(github.rest.pulls.listReviews, {owner, repo, pull_number, per_page: 100});
+    const latest = reviews.filter(review => review.user?.login === 'github-actions[bot]' && review.commit_id === expected.head.sha && Number.isSafeInteger(review.id)).sort((a, b) => b.id - a.id)[0];
+    if (latest?.state?.toLowerCase() !== 'changes_requested') throw Error('Missing current-head Actions change request');
+  }
   if (reserve) {
     if (pr.labels.some(x => x.name === 'agent:repair-used')) throw Error('Repair budget consumed');
     await github.rest.issues.addLabels({owner, repo, issue_number: pull_number, labels: ['agent:repair-used']});

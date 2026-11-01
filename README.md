@@ -6,15 +6,18 @@ Root's live protocol probe has verified Chat Completions and Responses tool-call
 continuation through the existing OmniRoute `agent-implement` pool. That pool currently
 contains only the local `ai-server-fast` route; no Colab provider was started or qualified.
 Pi/AWF, detector, review and GitHub publication have not yet passed end-to-end deployment.
+The initial setup commit is `42120df`; hosted `Deterministic CI` has passed without inference.
+Private-repository branch-protection configuration returned HTTP 403 for this account's
+entitlement. Any public synthetic-lab switch and protected-merge test remain pending.
 The maintained candidate uses GitHub Agentic Workflows (gh-aw), built-in Pi, the existing
 OmniRoute endpoint and trusted safe-output publication. No daemon, poller, scheduler,
 database, new router or custom agent supervisor is introduced.
 
 ## Accepted source to review/copy
 
-- `.github/workflows/lean-work.md`: an explicitly applied `agent:approved` issue label starts bounded Pi work. Maintained create-pull-request safe output allows only `fixture/math.js`, applies bot/approval metadata, and requests GitHub-native squash auto-merge.
-- `.github/workflows/lean-repair.md`: ordinary PR events run deterministic fixture CI. A failure, or a submitted changes-requested review, may reserve the PR's **one cumulative automatic repair**. Pi repairs the immutable triggering revision; maintained push-to-pull-request-branch publishes it. This avoids unsupported `workflow_run` remapping entirely.
-- `.github/workflows/lean-review.md`: a fresh Pi context has Bash, CLI proxy and editing disabled. A maintained custom-safe-output job publishes a review using a separate review-only principal, pinned to the event head. Its small trusted publisher first validates strict evidence and rechecks current head/base. Native submit-review was insufficient because empty APPROVE is accepted and its per-output token is bound in trusted worker setup. The custom job keeps the review PAT exclusively in `publish_review`.
+- `.github/workflows/lean-work.md`: an explicitly applied `agent:approved` issue label starts bounded Pi work. Maintained create-pull-request safe output uses Xavier's repository-scoped publication PAT, allows only `fixture/math.js`, applies bot/approval metadata, and requests GitHub-native squash auto-merge.
+- `.github/workflows/lean-repair.md`: ordinary PR events run deterministic fixture CI. A failure, a submitted human changes-requested review or the exact `agent:review-changes` label may reserve the PR's **one cumulative automatic repair**. Label triggers require the latest GitHub Actions review on that exact head to request changes. Activation must succeed without exhausted daily credits before reservation. Pi repairs the immutable triggering revision; maintained push-to-pull-request-branch publishes it. This avoids unsupported `workflow_run` remapping entirely.
+- `.github/workflows/lean-review.md`: a fresh Pi context has Bash, CLI proxy and editing disabled. A maintained custom-safe-output job publishes the independent review as GitHub Actions, pinned to the event head. Its small trusted publisher first validates strict evidence and rechecks current head/base. Native submit-review was insufficient because empty APPROVE is accepted. Only `publish_review` receives `pull-requests: write`; it uses the job's `GITHUB_TOKEN`, with no extra account or review credential.
 - `.github/scripts/guard.cjs`: the finite eligibility/budget glue. It validates well-formed immutable head/base, current repository default-branch tip, same-repository open/non-draft status, approved bot metadata, known file status and a safe integer change count for the permitted file. A separate trusted job consumes `agent:repair-used` before repair; worker safe outputs cannot alter labels. Same-PR reservations serialize. Repair/review recheck after inference/detection and inside the publisher.
 - `.github/scripts/review-evidence.cjs`: rejects absent/multiple/empty/generic/malformed/stale review output. PASS needs exactly four concrete arithmetic cases, correct expected values and exact source-line evidence fetched at the immutable head; FAIL needs actual file/line findings. Structured evidence cannot prove model reasoning is correct: mutation and adversarial model trials remain required.
 - `fixture/math.js`, `fixture/math.test.js`, `package.json`: dependency-free arithmetic fixture; no private project data. CI runs with read-only permissions and no provider/publisher secrets.
@@ -24,6 +27,12 @@ database, new router or custom agent supervisor is introduced.
 
 Every inference-triggering path is disabled until repository variable `LEAN_BOT_TRIAL=true`
 is deliberately set. Compiled YAML still contains invalid endpoint/model placeholders.
+
+`.github/CODEOWNERS` requires Xavier for workflow, guard and test changes when native
+code-owner review is enabled. Ordinary fixture changes use the independent Actions
+review. The structured review validator can accept a false claim about faulty source;
+an adversarial probe demonstrated this. It checks evidence shape and revision binding,
+so current deterministic CI remains essential to merge eligibility.
 
 ## Exact tested versions and regeneration
 
@@ -73,18 +82,34 @@ but its compatibility with the actual Qwen/OmniRoute route is **not demonstrated
 Pi as detector compiled but silently generated a Copilot CLI fallback; the candidate instead
 names Codex explicitly. Do not disable detection or silently add a paid fallback to make it pass.
 
-`LEAN_BOT_CI_TRIGGER_TOKEN` is a publisher-only, repository-scoped credential for the documented
-extra empty commit that starts CI (plain GITHUB_TOKEN publication usually does not start CI).
-`LEAN_BOT_REVIEW_TOKEN` must belong to a different review-only principal from the PR author;
-it needs pull-request review authority, no content-write or branch-protection bypass. Neither
-is passed to the Pi execution step. The generated review PAT reference is confined to the
-trusted `publish_review` job. Generated redaction/cleanup jobs may reference other secret
-names for scrubbing; that does not grant sandbox access. Runtime isolation still needs a
-credential-canary test in the owned test repository.
+`LEAN_BOT_CI_TRIGGER_TOKEN` is Xavier's repository-scoped publication PAT. Both native PR
+creation and repair pushing use the supported per-handler `github-token` field; their
+documented extra empty commit uses the same PAT. This makes Xavier the author/pusher and
+starts ordinary CI without adding another account. Never set global `GH_AW_GITHUB_TOKEN`
+to this write credential: worker GitHub/MCP access must remain read-only.
 
-Before enabling, root must verify required `fixture-ci` success, required independent approval,
+The generated work/repair jobs bind this PAT in trusted `Generate Safe Outputs Config`
+and log-redaction steps, as well as the trusted publisher job. These host-framework bindings
+are real credentials, not just placeholders. They are absent from Pi execution, the worker
+GitHub/MCP token and detection jobs. AWF must keep their environment/files outside the actual
+worker; a runtime credential/socket canary still needs to prove that isolation. The static
+checker enforces the exact expected bindings and does not claim sandbox isolation is tested.
+
+The independent reviewer uses `GITHUB_TOKEN` only in the trusted `publish_review` job with
+`pull-requests: write`. The repository's Actions setting permitting PR review approval must
+be enabled by the deployment owner. Whether GitHub counts that approval, dismisses it on a
+new push and enforces the last-push rule needs an actual protected-repository trial.
+GitHub does not start another workflow from a `GITHUB_TOKEN` review event. After a validated
+REQUEST_CHANGES review succeeds, the trusted publisher uses the existing scoped PAT solely
+to add fixed label `agent:review-changes`. That ordinary labeled PR event starts repair with
+full revision context; the receiving guard checks the latest Actions review and exact head
+before spending budget. An APPROVE never emits this label. In the review workflow, the PAT
+is bound only in `publish_review`; the worker and detector receive no such binding.
+
+Before enabling, root must verify required `Deterministic CI` success, required independent approval,
 stale-approval dismissal, up-to-date branch or merge queue, native auto-merge availability,
-no bot/admin bypass, and actual review-token acceptance. A successful workflow process alone
+no bot/admin bypass, and actual Actions-review acceptance. The internal repair `fixture-ci`
+job can skip and must not be selected as the required check. A successful workflow process alone
 is **not** a clean review; absent/failed/malformed review produces no GitHub approval and must
 block merge. A model can still make an incorrect clean assessment; deterministic CI/policy
 remain required. Policy/CI/config changes are outside this lane.
