@@ -1,0 +1,1 @@
+{"name":"disposable-lean-bot-fixture","private":true,"type":"module","scripts":{"test":"node --test fixture/math.test.js"}}
