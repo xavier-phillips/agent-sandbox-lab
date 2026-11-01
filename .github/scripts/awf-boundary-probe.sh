@@ -32,11 +32,16 @@ test "$(cat probe-write)" = written
 echo 'PASS: disposable workspace is writable'
 curl --fail --silent --show-error --max-time 20 https://api.github.com/zen >/dev/null
 echo 'PASS: explicitly allowed documented GitHub API endpoint responds'
-if curl --fail --silent --show-error --max-time 15 https://blocked-awf-probe.invalid/ >/dev/null 2>denied.err; then
+curl_status=0
+curl_codes=$(curl --fail --silent --show-error --max-time 15 --output /dev/null --write-out 'http=%{http_code} connect=%{http_connect}' https://blocked-awf-probe.invalid/ 2>denied.err) || curl_status=$?
+printf 'Denied request: curl_exit=%s %s\n' "$curl_status" "$curl_codes"
+head -c 2048 denied.err >&2
+printf '\n' >&2
+if [ "$curl_status" -eq 0 ]; then
   echo 'FAIL: denied reserved hostname unexpectedly succeeded' >&2
   exit 1
 fi
-grep -Eq '(response 403|403 Forbidden|returned error: 403)' denied.err
+printf '%s\n' "$curl_codes" | grep -Eq '(^http=403 | connect=403$)'
 echo 'PASS: reserved denied hostname returns proxy 403; DNS failure alone is insufficient'
 PROBE
 export GITHUB_WORKSPACE="$workspace"
