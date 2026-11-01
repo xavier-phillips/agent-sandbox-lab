@@ -3,6 +3,7 @@ description: Fresh credential-isolated read-only review; trusted safe-output pub
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
+if: vars.LEAN_BOT_TRIAL == 'true'
 permissions:
   contents: read
   pull-requests: read

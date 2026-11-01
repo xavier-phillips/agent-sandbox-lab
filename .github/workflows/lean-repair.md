@@ -5,6 +5,7 @@ on:
     types: [opened, synchronize, reopened, ready_for_review, labeled]
   pull_request_review:
     types: [submitted]
+if: vars.LEAN_BOT_TRIAL == 'true'
 permissions:
   contents: read
   pull-requests: read

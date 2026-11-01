@@ -56,6 +56,18 @@ print("CI: read-only deterministic checks, no provider/publisher secrets or agen
 for name in ("work", "repair", "review"):
     workflow = yaml.safe_load((root / f".github/workflows/lean-{name}.lock.yml").read_text(encoding="utf-8"))
     jobs = workflow["jobs"]
+    if name in ("repair", "review"):
+        assert "vars.LEAN_BOT_TRIAL == 'true'" in jobs["pre_activation"]["if"], name
+        def depends_on_pre_activation(job_name, seen=None):
+            if job_name == "pre_activation":
+                return True
+            seen = set() if seen is None else seen
+            assert job_name not in seen, (name, job_name, "cyclic job dependency")
+            needs = jobs[job_name].get("needs", [])
+            needs = [needs] if isinstance(needs, str) else needs
+            return any(depends_on_pre_activation(parent, seen | {job_name}) for parent in needs)
+        assert all(depends_on_pre_activation(job_name) for job_name in jobs), name
+        assert "needs.pre_activation.outputs.activated == 'true'" in jobs["activation"]["if"], name
     gate = {"work": "activation", "repair": "reserve", "review": "policy"}[name]
     assert "vars.LEAN_BOT_TRIAL == 'true'" in jobs[gate]["if"], name
     if name != "work":
