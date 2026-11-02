@@ -120,6 +120,13 @@ jobs:
           version: '1.102.4'
           use-cache: 'false'
           log-mode: quiet
+      - name: Resolve tailnet names inside the AWF sandbox
+        # AWF's proxy asks 8.8.8.8, which cannot see MagicDNS. Send container DNS to
+        # Tailscale's resolver instead; the domain allowlist and tailnet ACL still decide reachability.
+        run: |
+          for p in udp tcp; do for d in 8.8.8.8 8.8.4.4; do
+            sudo iptables -t nat -I PREROUTING -p "$p" -d "$d" --dport 53 -j DNAT --to-destination 100.100.100.100:53
+          done; done
       - name: Wait for dense Qwen (cold start up to 600 s)
         env:
           OMNIROUTE_API_KEY: ${{ secrets.OMNIROUTE_API_KEY }}
@@ -163,6 +170,13 @@ jobs:
           version: '1.102.4'
           use-cache: 'false'
           log-mode: quiet
+      - name: Resolve tailnet names inside the AWF sandbox
+        # AWF's proxy asks 8.8.8.8, which cannot see MagicDNS. Send container DNS to
+        # Tailscale's resolver instead; the domain allowlist and tailnet ACL still decide reachability.
+        run: |
+          for p in udp tcp; do for d in 8.8.8.8 8.8.4.4; do
+            sudo iptables -t nat -I PREROUTING -p "$p" -d "$d" --dport 53 -j DNAT --to-destination 100.100.100.100:53
+          done; done
       - name: Wait for dense Qwen (cold start up to 600 s)
         env:
           OMNIROUTE_API_KEY: ${{ secrets.OMNIROUTE_API_KEY }}
