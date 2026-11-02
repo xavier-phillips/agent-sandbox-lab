@@ -32,6 +32,7 @@ tools:
 safe-outputs:
   threat-detection:
     continue-on-error: false
+    engine-timeout: 15m  # dense Qwen at ~16 tok/s; a timeout still fails closed
     engine:
       id: codex
       model: openai/lean-qwen27b
