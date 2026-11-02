@@ -18,6 +18,11 @@ engine:
     OPENAI_BASE_URL: https://ai-server.tail67b2d4.ts.net/v1
     CODEX_API_KEY: ${{ secrets.OMNIROUTE_API_KEY }}
     OPENAI_API_KEY: ${{ secrets.OMNIROUTE_API_KEY }}
+models:
+  # Self-hosted Qwen: AWF needs a rate to meter ai-credits; turns and timeouts are the real bounds.
+  default-ai-credits-pricing:
+    input: 0.000001
+    output: 0.000001
 network:
   allowed: [defaults, ai-server.tail67b2d4.ts.net]
 tools:
