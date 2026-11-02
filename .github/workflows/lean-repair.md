@@ -8,6 +8,7 @@ on:
 if: vars.LEAN_BOT_TRIAL == 'true'
 permissions:
   contents: read
+  issues: read
   pull-requests: read
 engine:
   id: pi
@@ -124,6 +125,7 @@ jobs:
   agent:
     permissions:
       contents: read
+      issues: read
       pull-requests: read
     pre-steps:
       - name: Connect private inference tailnet
