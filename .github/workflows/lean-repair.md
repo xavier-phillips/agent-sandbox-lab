@@ -44,6 +44,7 @@ safe-outputs:
           await guard({github, context}, false);
   threat-detection:
     continue-on-error: false
+    engine-timeout: 15m  # dense Qwen at ~16 tok/s; a timeout still fails closed
     engine:
       id: codex
       model: openai/lean-qwen27b
@@ -155,6 +156,8 @@ jobs:
     if: always() && needs.reserve.result == 'success'
   recheck:
     needs: [agent, detection]
+    # always(): fixture-ci failing is what starts a repair, so default success() would skip this.
+    if: always() && needs.agent.result == 'success' && needs.detection.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -171,7 +174,7 @@ jobs:
             await guard({github, context}, false);
   safe_outputs:
     needs: [recheck]
-    if: needs.recheck.result == 'success'
+    if: always() && needs.recheck.result == 'success'
   detection:
     permissions:
       contents: read
