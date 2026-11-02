@@ -35,19 +35,13 @@ assert "check('/v1/models', 200, authenticated=True, models=True)" in probe["run
 assert "'/api/keys'" in probe["run"] and "check(path, 404, authenticated=True)" in probe["run"]
 assert "chat/completions" not in probe["run"] and "/responses" not in probe["run"]
 print("Connectivity: manual-only bounded HTTPS canary, key only in probe step, no inference")
-gate_probe = yaml.safe_load((root / ".github/workflows/lean-gate-check.yml").read_text(encoding="utf-8"))
-assert set(gate_probe.get("on", gate_probe.get(True))) == {"workflow_dispatch"}
-assert gate_probe["permissions"] == {} and len(gate_probe["jobs"]) == 1
-gate_job = gate_probe["jobs"]["approve-synthetic-head"]
-assert gate_job["if"] == "github.actor_id == '141337987' && github.repository_id == '1441786552'"
-assert gate_job["permissions"] == {"pull-requests": "write"} and len(gate_job["steps"]) == 1
-gate_step = gate_job["steps"][0]
-assert gate_step["uses"] == "actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3"
-assert gate_step["with"]["github-token"] == "${{ secrets.GITHUB_TOKEN }}"
-assert str(gate_probe).count("secrets.") == 1 and "env" not in gate_job
-for fence in ("Number.isSafeInteger(number)", "/^[a-f0-9]{40}$/", "pr.state !== 'open'", "pr.draft !== false", "pr.head.repo?.full_name", "pr.base.repo?.full_name", "pr.base.ref !== 'gate-acceptance'", "pr.user.id !== 141337987", "'[gate acceptance] '", "pr.head.sha !== expected_head", "commit_id: expected_head"):
-    assert fence in gate_step["with"]["script"], fence
-print("Gate acceptance: manual exact-head Actions approval only on fenced synthetic lab branch")
+policy = yaml.safe_load((root / ".github/workflows/path-policy.yml").read_text(encoding="utf-8"))
+assert set(policy.get("on", policy.get(True))) == {"pull_request_target"}
+assert policy["permissions"] == {"contents": "read", "pull-requests": "read"}
+policy_steps = policy["jobs"]["path-policy"]["steps"]
+assert len(policy_steps) == 1 and "checkout" not in str(policy) and "secrets." not in str(policy)
+assert "new Set(['fixture/math.js'])" in policy_steps[0]["with"]["script"]
+print("Path policy: base-branch pull_request_target check, no PR checkout, no secrets")
 ci = yaml.safe_load((root / ".github/workflows/ci.yml").read_text(encoding="utf-8"))
 assert ci["permissions"] == {"contents": "read"}
 assert "secrets." not in str(ci) and "OPENAI" not in str(ci)
@@ -88,7 +82,7 @@ for name in ("work", "repair", "review"):
         assert connection_index < job["steps"].index(execution_steps[0]), (name, job_name)
     assert "omniroute.example.invalid" not in str(workflow), name
     assert "https://ai-server.tail67b2d4.ts.net/v1" in str(workflow), name
-    assert "QUALIFIED_ROUTE_ID" in str(workflow) or name == "review", name
+    assert "QUALIFIED_" not in str(workflow) and "lean-qwen27b" in str(workflow), name
     execution = [step for step in agent["steps"] if step.get("name") == "Execute Pi CLI"]
     assert len(execution) == 1, name
     step = execution[0]

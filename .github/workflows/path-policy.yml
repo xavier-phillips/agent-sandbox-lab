@@ -1,0 +1,26 @@
+name: Path policy
+# Required check. pull_request_target runs this file from the base branch, so a PR
+# cannot edit the check it is judged by. It never checks out or runs PR code.
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+permissions:
+  contents: read
+  pull-requests: read
+jobs:
+  path-policy:
+    name: path-policy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3
+        with:
+          script: |
+            // The only path automation may merge. Everything else needs the owner (see DECISIONS.md).
+            const allowed = new Set(['fixture/math.js']);
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              ...context.repo, pull_number: context.payload.pull_request.number, per_page: 100});
+            const blocked = files.filter(f => !allowed.has(f.filename) || f.status !== 'modified'
+              || (f.previous_filename && !allowed.has(f.previous_filename)));
+            for (const f of files) core.info(`${f.status} ${f.filename}`);
+            if (!files.length || blocked.length) core.setFailed(`Protected or unsupported paths: ${blocked.map(f => f.filename).join(', ') || '(empty diff)'}`);

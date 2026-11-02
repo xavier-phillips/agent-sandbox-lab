@@ -12,7 +12,7 @@ engine:
   id: pi
   version: '1.4.0'
   bare: true
-  model: openai/QUALIFIED_ROUTE_ID
+  model: openai/lean-qwen27b
   model-provider: openai
   env:
     OPENAI_BASE_URL: https://ai-server.tail67b2d4.ts.net/v1
@@ -29,7 +29,7 @@ safe-outputs:
     continue-on-error: false
     engine:
       id: codex
-      model: openai/QUALIFIED_REVIEW_ROUTE_ID
+      model: openai/lean-qwen27b
       model-provider: openai
       env:
         OPENAI_BASE_URL: https://ai-server.tail67b2d4.ts.net/v1
@@ -61,6 +61,13 @@ jobs:
           version: '1.102.4'
           use-cache: 'false'
           log-mode: quiet
+      - name: Wait for dense Qwen (cold start up to 600 s)
+        env:
+          OMNIROUTE_API_KEY: ${{ secrets.OMNIROUTE_API_KEY }}
+        run: |
+          code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 600             -H "Authorization: Bearer $OMNIROUTE_API_KEY" -H 'Content-Type: application/json'             -d '{"model":"lean-qwen27b","max_tokens":1,"messages":[{"role":"user","content":"ok"}]}'             https://ai-server.tail67b2d4.ts.net/v1/chat/completions)
+          echo "warm-up HTTP $code"
+          test "$code" = 200
 
   detection:
     permissions:
@@ -77,6 +84,13 @@ jobs:
           version: '1.102.4'
           use-cache: 'false'
           log-mode: quiet
+      - name: Wait for dense Qwen (cold start up to 600 s)
+        env:
+          OMNIROUTE_API_KEY: ${{ secrets.OMNIROUTE_API_KEY }}
+        run: |
+          code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 600             -H "Authorization: Bearer $OMNIROUTE_API_KEY" -H 'Content-Type: application/json'             -d '{"model":"lean-qwen27b","max_tokens":1,"messages":[{"role":"user","content":"ok"}]}'             https://ai-server.tail67b2d4.ts.net/v1/chat/completions)
+          echo "warm-up HTTP $code"
+          test "$code" = 200
 
 timeout-minutes: 20
 max-turns: 25

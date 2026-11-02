@@ -1,6 +1,0 @@
-# Automation may change fixture/math.js. Gate and test changes require the owner.
-/.github/ @xavier-phillips
-/scripts/ @xavier-phillips
-/tests/ @xavier-phillips
-/fixture/math.test.js @xavier-phillips
-/package.json @xavier-phillips
