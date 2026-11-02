@@ -29,7 +29,7 @@ network:
 tools:
   bash: true
   github:
-    toolsets: [pull_requests, repos]
+    toolsets: [issues, pull_requests, repos]
 safe-outputs:
   steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -216,6 +216,7 @@ fixture/math.js. Run npm test again and publish exactly one correction through
 push-to-pull-request-branch. Do not modify tests, configuration, labels or protections.
 For an agent:review-changes label event, fetch the latest github-actions[bot] change-request
 review on this exact head and address its concrete findings even when current tests pass.
-Also run the acceptance block from the issue the PR closes: save it as qa-acceptance.test.mjs
+Also run the acceptance block from the issue the PR closes (the number after "Closes #" in
+the PR body; read it with the GitHub issue tools): save it as qa-acceptance.test.mjs
 in the repository root, run node --test qa-acceptance.test.mjs, then delete the file.
 If tests or acceptance still fail, stop. The worker receives no GitHub publisher token.
