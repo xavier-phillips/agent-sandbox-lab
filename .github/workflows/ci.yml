@@ -20,4 +20,4 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Run fixture, guard, review-evidence and publication-race tests
-        run: node --test fixture/math.test.js scripts/guard.test.cjs scripts/review-evidence.test.cjs scripts/publication-race.test.cjs
+        run: node --test fixture/math.test.js scripts/acceptance.test.cjs scripts/guard.test.cjs scripts/review-evidence.test.cjs scripts/publication-race.test.cjs

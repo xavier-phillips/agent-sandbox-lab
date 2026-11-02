@@ -121,12 +121,13 @@ jobs:
           use-cache: 'false'
           log-mode: quiet
       - name: Resolve tailnet names inside the AWF sandbox
-        # AWF's proxy asks 8.8.8.8, which cannot see MagicDNS. Send container DNS to
-        # Tailscale's resolver instead; the domain allowlist and tailnet ACL still decide reachability.
+        # AWF's proxy uses the runner's upstream DNS, which cannot see MagicDNS. PREROUTING only
+        # sees container traffic, so send container DNS to Tailscale's resolver (it forwards public
+        # names upstream). The domain allowlist and tailnet ACL still decide reachability.
         run: |
-          for p in udp tcp; do for d in 8.8.8.8 8.8.4.4; do
-            sudo iptables -t nat -I PREROUTING -p "$p" -d "$d" --dport 53 -j DNAT --to-destination 100.100.100.100:53
-          done; done
+          for p in udp tcp; do
+            sudo iptables -t nat -I PREROUTING -p "$p" --dport 53 -j DNAT --to-destination 100.100.100.100:53
+          done
       - name: Wait for dense Qwen (cold start up to 600 s)
         env:
           OMNIROUTE_API_KEY: ${{ secrets.OMNIROUTE_API_KEY }}
@@ -171,12 +172,13 @@ jobs:
           use-cache: 'false'
           log-mode: quiet
       - name: Resolve tailnet names inside the AWF sandbox
-        # AWF's proxy asks 8.8.8.8, which cannot see MagicDNS. Send container DNS to
-        # Tailscale's resolver instead; the domain allowlist and tailnet ACL still decide reachability.
+        # AWF's proxy uses the runner's upstream DNS, which cannot see MagicDNS. PREROUTING only
+        # sees container traffic, so send container DNS to Tailscale's resolver (it forwards public
+        # names upstream). The domain allowlist and tailnet ACL still decide reachability.
         run: |
-          for p in udp tcp; do for d in 8.8.8.8 8.8.4.4; do
-            sudo iptables -t nat -I PREROUTING -p "$p" -d "$d" --dport 53 -j DNAT --to-destination 100.100.100.100:53
-          done; done
+          for p in udp tcp; do
+            sudo iptables -t nat -I PREROUTING -p "$p" --dport 53 -j DNAT --to-destination 100.100.100.100:53
+          done
       - name: Wait for dense Qwen (cold start up to 600 s)
         env:
           OMNIROUTE_API_KEY: ${{ secrets.OMNIROUTE_API_KEY }}

@@ -67,15 +67,30 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      issues: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: base
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
           ref: ${{ github.event.pull_request.head.sha }}
+          path: head
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version: '24'
       - run: npm test
+        working-directory: head
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3
+        with:
+          script: |
+            const {loadAcceptance} = require('./base/.github/scripts/acceptance.cjs');
+            require('fs').writeFileSync('head/qa-acceptance.test.mjs', await loadAcceptance({github, context}));
+      - run: node --test qa-acceptance.test.mjs
+        working-directory: head
   reserve:
     needs: [activation, fixture-ci]
     if: >-
@@ -121,12 +136,13 @@ jobs:
           use-cache: 'false'
           log-mode: quiet
       - name: Resolve tailnet names inside the AWF sandbox
-        # AWF's proxy asks 8.8.8.8, which cannot see MagicDNS. Send container DNS to
-        # Tailscale's resolver instead; the domain allowlist and tailnet ACL still decide reachability.
+        # AWF's proxy uses the runner's upstream DNS, which cannot see MagicDNS. PREROUTING only
+        # sees container traffic, so send container DNS to Tailscale's resolver (it forwards public
+        # names upstream). The domain allowlist and tailnet ACL still decide reachability.
         run: |
-          for p in udp tcp; do for d in 8.8.8.8 8.8.4.4; do
-            sudo iptables -t nat -I PREROUTING -p "$p" -d "$d" --dport 53 -j DNAT --to-destination 100.100.100.100:53
-          done; done
+          for p in udp tcp; do
+            sudo iptables -t nat -I PREROUTING -p "$p" --dport 53 -j DNAT --to-destination 100.100.100.100:53
+          done
       - name: Wait for dense Qwen (cold start up to 600 s)
         env:
           OMNIROUTE_API_KEY: ${{ secrets.OMNIROUTE_API_KEY }}
@@ -171,12 +187,13 @@ jobs:
           use-cache: 'false'
           log-mode: quiet
       - name: Resolve tailnet names inside the AWF sandbox
-        # AWF's proxy asks 8.8.8.8, which cannot see MagicDNS. Send container DNS to
-        # Tailscale's resolver instead; the domain allowlist and tailnet ACL still decide reachability.
+        # AWF's proxy uses the runner's upstream DNS, which cannot see MagicDNS. PREROUTING only
+        # sees container traffic, so send container DNS to Tailscale's resolver (it forwards public
+        # names upstream). The domain allowlist and tailnet ACL still decide reachability.
         run: |
-          for p in udp tcp; do for d in 8.8.8.8 8.8.4.4; do
-            sudo iptables -t nat -I PREROUTING -p "$p" -d "$d" --dport 53 -j DNAT --to-destination 100.100.100.100:53
-          done; done
+          for p in udp tcp; do
+            sudo iptables -t nat -I PREROUTING -p "$p" --dport 53 -j DNAT --to-destination 100.100.100.100:53
+          done
       - name: Wait for dense Qwen (cold start up to 600 s)
         env:
           OMNIROUTE_API_KEY: ${{ secrets.OMNIROUTE_API_KEY }}
@@ -195,4 +212,6 @@ fixture/math.js. Run npm test again and publish exactly one correction through
 push-to-pull-request-branch. Do not modify tests, configuration, labels or protections.
 For an agent:review-changes label event, fetch the latest github-actions[bot] change-request
 review on this exact head and address its concrete findings even when current tests pass.
-If tests still fail, stop. The worker receives no GitHub publisher token.
+Also run the acceptance block from the issue the PR closes: save it as qa-acceptance.test.mjs
+in the repository root, run node --test qa-acceptance.test.mjs, then delete the file.
+If tests or acceptance still fail, stop. The worker receives no GitHub publisher token.

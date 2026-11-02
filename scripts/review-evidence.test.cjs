@@ -17,4 +17,3 @@ test('reject empty generic malformed absent stale or fabricated approvals', () =
   for (const edit of [{head_sha: 'c'.repeat(40)}, {base_sha: 'c'.repeat(40)}, {verdict: 'FAIL'}, {inspected: []}, {findings: [{}]}, {extra: true}, {inspected: inspected.map(x => ({...x, code: 'not actual code'}))}, {inspected: inspected.map(x => ({...x, reason: 'looks good'}))}, {inspected: inspected.map(x => ({...x, expected: 999}))}, {inspected: inspected.map(x => ({...x, case: 'normal'}))}]) assert.throws(() => validateEvidence(wrap({...pass, ...edit}), expected, source));
   assert.throws(() => validateEvidence(wrap(pass), expected, source.replace('/ 100', '/ 10')), /immutable code/);
 });
-

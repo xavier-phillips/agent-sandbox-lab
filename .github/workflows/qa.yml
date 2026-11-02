@@ -1,0 +1,38 @@
+name: QA
+# Required check: runs the linked issue's owner-written acceptance test against the PR head.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, edited]
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+jobs:
+  qa:
+    name: qa
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: base
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: head
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Load acceptance test from the linked issue (base-branch code)
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3
+        with:
+          script: |
+            const {loadAcceptance} = require('./base/.github/scripts/acceptance.cjs');
+            require('fs').writeFileSync('head/qa-acceptance.test.mjs', await loadAcceptance({github, context}));
+      - name: Run acceptance test
+        working-directory: head
+        run: node --test qa-acceptance.test.mjs
