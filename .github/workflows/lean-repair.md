@@ -33,15 +33,17 @@ tools:
     toolsets: [issues, pull_requests, repos]
 safe-outputs:
   steps:
+    # Own directory: checking out over the workspace would drop the publisher's push credentials.
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       with:
         ref: ${{ github.event.pull_request.base.sha }}
+        path: fence
         persist-credentials: false
     - name: Fence live PR and default-base revision inside native publisher job
       uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3
       with:
         script: |
-          const {guard} = require('./.github/scripts/guard.cjs');
+          const {guard} = require('./fence/.github/scripts/guard.cjs');
           await guard({github, context}, false);
   threat-detection:
     continue-on-error: false
