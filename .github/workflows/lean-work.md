@@ -39,6 +39,7 @@ safe-outputs:
       env:
         OPENAI_BASE_URL: https://ai-server.tail67b2d4.ts.net/v1
         CODEX_API_KEY: ${{ secrets.OMNIROUTE_API_KEY }}
+        OPENAI_API_KEY: ${{ secrets.OMNIROUTE_API_KEY }}
   create-pull-request:
     github-token: ${{ secrets.LEAN_BOT_CI_TRIGGER_TOKEN }}
     title-prefix: '[lean-bot] '
