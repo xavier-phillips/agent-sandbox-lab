@@ -207,5 +207,8 @@ expected 20; zero inputs [80,0] expected 0; fractional inputs [50,2.5] expected 
 negative inputs [-80,25] expected -20. Each inspected record also has case, inputs,
 expected. For FAIL include at least one concrete file/line finding. Missing access or
 uncertainty means emit no approval. Generic/empty prose and malformed evidence are rejected
-by a trusted publisher hook. Never approve on the basis of the author's claim that CI passes.
+by a trusted publisher hook. Use exactly these key names; one PASS inspected record looks like
+{"case":"normal","inputs":[80,25],"expected":20,"file":"fixture/math.js","line":5,"code":"return value * rate / 100;","reason":"..."}
+where code is the exact trimmed text of that line in the PR head and case is one of normal, zero,
+fractional, negative. Findings use file, line, code and reason only. Never approve on the basis of the author's claim that CI passes.
 The trusted publisher uses the GitHub Actions token; the PR author/pusher uses Xavier's scoped publication PAT.
